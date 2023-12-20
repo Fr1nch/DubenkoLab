@@ -1,313 +1,471 @@
-﻿#include <iostream>
-#include<string>
-#include<windows.h>
-#include<fstream>
+﻿#include <windows.h>
+#include <fstream>
+#include <string>
+#include <unordered_map>
+#include "KsH.h"
+#include "PipeH.h"
+#include "Proverka.h"
+#include <chrono>
+#include <iostream>
+
 
 using namespace std;
 
+void vivodMapPipe(unordered_map <int, Pipeline> MP)
+{
+	for (auto& [id, item] : MP)
+	{
+		cout << "ID: " << id << "\n"
+			<< "Название трубы: " << item.Name << "\n"
+			<< "Длина трубы: " << item.Length << "\n"
+			<< "Диаметр трубы: " << item.Diameter << "\n"
+			<< "Состояние трубы: " << item.Repairing << "\n";
+	}
+}
+
+void vivodMapKS(unordered_map <int, KStation> MK)
+{
+	for (auto& [id, item] : MK)
+	{
+		cout << "ID: " << id << "\n"
+			<< "Название КС: " << item.Name << "\n"
+			<< "Количество цехов: " << item.NWorkshops << "\n"
+			<< "Количество цехов в работе: " << item.WorkingWorkshops << "\n"
+			<< "Коэффициент эффективности: " << item.Efficiency << "\n";
+	}
+}
+
+unordered_map <int, Pipeline> readPipes(unordered_map <int, Pipeline>& MP, string iFileName)
+{
+	ifstream in(iFileName);
+	if (in.is_open()) {
+		while (!in.eof())
+		{
+			string flag;
+			in >> flag;
+			if (flag == "Pipeline_flag")
+			{
+				Pipeline P;
+				P.readPipe(in);
+				MP.insert({ P.getPipeID(), P });
+			}
+		}
+		cout << "Данные загружены" << endl;
+	}
+	in.close();
+	return MP;
+}
+
+unordered_map <int, KStation> readKSs(unordered_map <int, KStation>& MK, string iFileName)
+{
+	ifstream in(iFileName);
+	if (in.is_open()) {
+		while (!in.eof())
+		{
+			string flag;
+			in >> flag;
+			if (flag == "KStation_flag")
+			{
+				KStation K;
+				K.readKS(in);
+				MK.insert({ K.getKSID(), K });
+			}
+		}
+	}
+	in.close();
+	return MK;
+}
+
+void sohraneniePipes(unordered_map <int, Pipeline> MP, string iFileName)
+{
+	ofstream f;
+	f.open(iFileName, ios::out);
+	if (f.is_open())
+	{
+		if (!MP.size() == 0)
+		{
+			for (auto& [id, item] : MP)
+			{
+				Pipeline::sohraneniePipe(f, item);
+			}
+		}
+	}
+	f.close();
+	cout << "Изменения сохранены в файл" << endl;
+}
+
+void sohranenieKSs(unordered_map <int, KStation> MK, string iFileName)
+{
+	ofstream f;
+	f.open(iFileName, ios::app);
+	if (f.is_open())
+	{
+		if (!MK.size() == 0)
+		{
+			for (auto& [id, item] : MK)
+			{
+				KStation::sohranenieKS(f, item);
+			}
+		}
+	}
+	f.close();
+	cout << "Изменения сохранены в файл" << endl;
+}
+
+Pipeline& selectPipe(unordered_map<int, Pipeline>& MP)
+{
+	cout << "Введите ID трубы или 0, чтобы продолжить: ";
+	int userID;
+	getCorrect(userID);
+	if (!MP.empty()) {
+		while (MP.find(userID) == MP.end())
+		{
+			if (userID == 0) {
+				break;
+			}
+			cout << "Труба с таким ID не найдена\n";
+			cout << "Введите ID трубы: ";
+			getCorrect(userID);
+		}
+		return MP[userID];
+	}
+	else {
+		cout << "Нет доступных труб для взаимодействия";
+	}
+}
+
+void deleteOnePipe(unordered_map<int, Pipeline>& MP)
+{
+	Pipeline p = selectPipe(MP);
+	MP.erase(p.getPipeID());
+	cout << "Труба удалена!" << endl;
+}
+
+
+KStation& selectStation(unordered_map<int, KStation>& MK)
+{
+	cout << "Введите ID станции: ";
+	int userID;
+	getCorrect(userID);
+	if (!MK.empty()) {
+		while (MK.find(userID) == MK.end())
+		{
+			if (userID == 0) {
+				break;
+			}
+			cout << "КС с таким ID не найдена\n";
+			cout << "Введите ID станции: ";
+			getCorrect(userID);
+		}
+		return MK[userID];
+	}
+	else {
+		cout << "Нет доступных труб для взаимодействия";
+	}
+}
+
+void deleteOneKS(unordered_map<int, KStation>& MK)
+{
+	KStation s = selectStation(MK);
+	MK.erase(s.getKSID());
+	cout << "Станция удалена!" << endl;
+}
+
+template<typename T>
+using Filter2 = bool(*)(const Pipeline& p, T parameter);
+
+bool checkByID(const Pipeline& p, int parameter)
+{
+	return p.getPipeID() >= parameter;
+}
+
+bool checkByRepair(const Pipeline& p, int parameter)
+{
+	return p.Repairing == parameter;
+}
+
+template<typename T>
+vector<int> findPipeByFilter(unordered_map<int, Pipeline>& mP, Filter2<T> f, T parameter)
+{
+	vector<int> result;
+
+	for (auto& [pID, p] : mP)
+	{
+		if (f(p, parameter))
+		{
+			result.push_back(p.getPipeID());
+		}
+	}
+
+	if (result.empty())
+	{
+		cout << "Трубы с такими параметрами не найдены\n";
+	}
+
+	return result;
+}
+
+
+template<typename T>
+using Filter1 = bool(*)(const KStation& s, T parameter);
+
+bool checkByName(const KStation& s, string parameter)
+{
+	return s.Name == parameter;
+}
+
+bool checkByNotWorkingWorkshops(const KStation& s, double parameter)
+{
+	return (double((s.NWorkshops - s.WorkingWorkshops) * 100) / s.NWorkshops) >= parameter;
+}
+
+template<typename T>
+vector<int> findStationByFilter(unordered_map<int, KStation>& mS, Filter1<T> f, T parameter)
+{
+	vector<int> result;
+
+	for (auto& [sID, s] : mS)
+	{
+		if (f(s, parameter))
+		{
+			result.push_back(s.getKSID());
+		}
+	}
+
+	if (result.empty())
+	{
+		cout << "КС с такими параметрами не найдены\n";
+	}
+
+	return result;
+}
+
+vector<int> PipeSearch(unordered_map<int, Pipeline>& MP)
+{
+	vector<int> result{};
+	cout << "Выберите параметры поиска: \n"
+		<< "1 - Найти трубу по ID; \n"
+		<< "2 - Найти трубу по состоянию\n";
+	if (getInRange(1, 2) == 1)
+	{
+		int pID;
+		cout << "Введите ID трубы: ";
+		getCorrect(pID);
+		for (int i : findPipeByFilter(MP, checkByID, pID))
+		{
+			cout << MP[i];
+			cout << "\n";
+		}
+		result = findPipeByFilter(MP, checkByID, pID);
+	}
+	else
+	{
+		int repair;
+		cout << "Введите состояние трубы: ";
+		repair = getInRange(0, 1);
+		for (int i : findPipeByFilter(MP, checkByRepair, repair))
+		{
+			cout << MP[i];
+		}
+		result = findPipeByFilter(MP, checkByRepair, repair);
+	}
+	return result;
+}
+
+void KSSearch(unordered_map<int, KStation>& MK)
+{
+	cout << "Выберите параметры поиска: \n"
+		<< "1 - Найти КС по названию; \n"
+		<< "2 - Найти КС по проценту не рабочих цехов\n";
+	if (getInRange(1, 2) == 1)
+	{
+		string name;
+		cout << "Введите название КС: ";
+		name = readLine();
+		for (int i : findStationByFilter(MK, checkByName, name))
+		{
+			cout << MK[i];
+		}
+	}
+	else
+	{
+		double percent;
+		cout << "Введите процент не рабочих цехов: ";
+		getCorrect(percent);
+		for (int i : findStationByFilter(MK, checkByNotWorkingWorkshops, percent))
+		{
+			cout << MK[i];
+		}
+	}
+}
+
+void PacketEditPipe(unordered_map<int, Pipeline>& mP)
+{
+	vector<int> allResult;
+	allResult = PipeSearch(mP);
+
+	cout << "Выберите параметры редактирования: \n"
+		<< "1 - редактировать все найденные трубы; \n"
+		<< "2 - редактировать определённые найденные трубы\n";
+	if (getInRange(1, 2) == 1)
+	{
+		cout << "Выберите состояние труб: \n"
+			<< "1 - все трубы работают; \n"
+			<< "2 - все трубы в ремонте\n";
+		for (auto& id : allResult)
+			mP[id].Repairing = (getInRange(1, 2) == 1);
+	}
+	else
+	{
+		vector <int> someResult;
+		while (true)
+		{
+			cout << "Введите ID редактируемой трубы или 0 для продолжения: ";
+			int i;
+			i = getInRange(0, *max_element(allResult.begin(), allResult.end()));
+			if (i)
+			{
+				if (mP.find(i) == mP.end())
+					cout << "Труба с таким ID не найдена\n";
+				else
+					someResult.push_back(i);
+			}
+			else
+				break;
+		}
+
+		cout << "Выберите состояние труб: \n"
+			<< "1 - все трубы работают; \n"
+			<< "2 - все трубы в ремонте\n";
+		for (auto& id : someResult)
+			mP[id].Repairing = (getInRange(1, 2) == 1);
+	}
+}
+
+void FullView(unordered_map <int, Pipeline> MP, unordered_map <int, KStation> MK)
+{
+	int variant;
+	Pipeline P;
+	KStation K;
+	cout << "Выберите действие" << endl;
+	cout << "1. Вывести список труб" << endl;
+	cout << "2. Вывести список КС" << endl;
+	cout << "3. Вывести все имеющиеся данные" << endl;
+	getCorrect(variant);
+	switch (variant) {
+	case 1:
+		vivodMapPipe(MP);
+		break;
+	case 2:
+		vivodMapKS(MK);
+		break;
+	case 3:
+		vivodMapPipe(MP);
+		vivodMapKS(MK);
+		break;
+	}
+}
+
 int print_menu() {
-    system("cls");
-    int num;
-    cout << "1. Добавить трубу\n";
-    cout << "2. Добавить КС\n";
-    cout << "3. Просмотр всех объектов\n";
-    cout << "4. Редактировать трубу\n";
-    cout << "5. Редактировать КС\n";
-    cout << "6. Сохранить\n";
-    cout << "7. Загрузить\n";
-    cout << "0. Выход\n";
-    cout << "> ";
-    cin >> num;
-    return num;
-}
-
-struct pipe
-{
-    string name = "";
-    int lenght;
-    int diametr;
-    bool repair;
-};
-
-struct ks 
-{
-    string name = "";
-    int n_workshop;
-    int n_workshop_v_rabote;
-    int effectiv;
-};
-
-bool check_repair()
-{
-    bool repair;
-    while (true)
-    {
-        cout << "Введите состояние трубы ('0' - труба работает '1' - труба находится в ремонте): ";
-        cin >> repair;
-        if (!cin)
-        {
-            cout << "Некоректный ввыод. Введите '0' или '1'\n";
-            cin.clear();
-            while (cin.get() != '\n');
-        }
-        else break;
-    }
-    return repair;
-}
-
-int check_in()
-{
-    int a;
-    while (true)
-    {
-        cin >> a;
-        if (!cin || a < 0)
-        {
-            cout << "Некоректный ввод. Введите целое положительное число\n";
-            cin.clear();
-            while (cin.get() != '\n');
-        }
-        else break;
-    }
-    return a;
-}
-
-void out_pipe(pipe p)
-{
-    if (p.name != "")
-    {
-        cout << "Название трубы: " << p.name << endl 
-        << "Длина трубы: " << p.lenght << endl 
-        << "Диаметр трубы: " << p.diametr << endl 
-        << "Состояние трубы: " << p.repair << endl;
-    }
-}
-
-void out_ks(ks k)
-{
-    if (k.name != "")
-    {
-        cout << "Название КС: " << k.name << endl 
-        << "Количество цехов на КС: " << k.n_workshop << endl 
-        << "Количество цехов в работе на КС: " << k.n_workshop_v_rabote << endl 
-        << "Эффективность КС: " << k.effectiv << endl;
-    }
-}
-
-void all_out(pipe p, ks k)
-{
-    out_pipe(p);
-    out_ks(k);
-}
-
-pipe edit_pipe(pipe p)
-{
-    cout << "Введите новое состояние трубы: " ;
-    p.repair = check_repair();
-    out_pipe(p);
-    return p;
-}
-
-ks edit_ks(ks k)
-{
-    if (k.name != "");
-    {
-        cout << "Введите новое количество цехов в работе: ";
-        k.n_workshop_v_rabote = check_in();
-        while (true)
-        {
-            if (k.n_workshop_v_rabote > k.n_workshop)
-            {
-                cout << "Некоректный ввод. Количество цехов в работе не может превышать общее количество цехов" << endl
-                    << "Введите количество цехов в работе на КС: ";
-                k.n_workshop_v_rabote = check_in();
-            }
-            else
-            {
-                break;
-            };
-        }
-        out_ks(k);
-        return k;
-    }
-}
-
-pipe add_new_pipe()
-{
-    pipe p;
-    cout << "Введите название трубы: ";
-    cin >> ws;
-    getline(cin, p.name);
-    cout << "Введите длину трубы: ";
-    p.lenght = check_in();
-    cout << "Введите диаметр трубы: ";
-    p.diametr = check_in();
-    cout << "Введите состояние трубы: ";
-    p.repair = check_repair();
-    return p;
-}
-
-ks add_new_ks()
-{
-    ks k;
-    cout << "Введите название КС: ";
-    cin >> ws;
-    getline(cin, k.name);
-    cout << "Введите количество цехов на КС: ";
-    k.n_workshop = check_in();
-    cout << "Введите количество цехов в работе на КС: ";
-    k.n_workshop_v_rabote = check_in();
-    while (true)
-    {
-        if (k.n_workshop_v_rabote > k.n_workshop)
-        {
-            cout << "Некоректный ввод. Количество цехов в работе не может превышать общее количество цехов" << endl 
-                << "Введите количество цехов в работе на КС: ";
-            k.n_workshop_v_rabote = check_in();
-        }
-        else
-        {
-            break;
-        };
-    }
-    cout << "Введите эффективность КС: ";
-    k.effectiv = check_in();
-    return k;
-}
-
-void output_in_file(pipe p, ks k)
-{
-    ofstream out;
-    out.open("output.txt");
-    if (out.is_open())
-    {
-        if (p.name != "")
-        {
-            out << "Pipe" << endl;
-            out << p.name << endl;
-            out << p.lenght << endl;
-            out << p.diametr << endl;
-            out << p.repair << endl;
-        }
-        if (k.name != "")
-        {
-            out << "KS" << endl;
-            out << k.name << endl;
-            out << k.n_workshop << endl;
-            out << k.n_workshop_v_rabote << endl;
-            out << k.effectiv << endl;
-        }
-    }
-    out.close();
-    cout << "Запись в файл закончена\n";
-}
-
-pipe input_file_pipe(pipe p)
-{
-    string label;
-    ifstream in;
-    in.open("output.txt");
-    if (in.is_open())
-    {
-        getline(in, label);
-        while (!label.empty())
-        {
-            if (label == "Pipe")
-            {
-                getline(in, p.name);
-                in >> p.lenght;
-                in >> p.diametr;
-                in >> p.repair;
-            }
-            getline(in, label);
-        }
-    }
-    in.close();
-    return p;
-}
-
-ks input_file_ks(ks k)
-{
-    string label;
-    ifstream in;
-    in.open("output.txt");
-    if (in.is_open())
-    {
-        getline(in, label);
-        while (!label.empty())
-        {
-            if (label == "KS")
-            {
-                getline(in, k.name);
-                in >> k.n_workshop;
-                in >> k.n_workshop_v_rabote;
-                in >> k.effectiv;
-            }
-            getline(in, label);
-        }
-    }
-    in.close();
-    return k;
+	system("cls");
+	int variant;
+	cout << "Выберите действие" << endl;
+	cout << "1. Добавить трубу" << endl;
+	cout << "2. Добавить КС" << endl;
+	cout << "3. Просмотр всех объектов" << endl;
+	cout << "4. Редактировать трубу" << endl;
+	cout << "5. Редактировать КС" << endl;
+	cout << "6. Загрузить данные" << endl;
+	cout << "7. Сохранить данные" << endl;
+	cout << "8. Удалить трубу" << endl;
+	cout << "9. Удалить станцию" << endl;
+	cout << "10. Поиск труб" << endl;
+	cout << "11. Поиск КС" << endl;
+	cout << "12. Пакетное редактирование" << endl;
+	cout << "0. Выход" << endl;
+	cout << ">>> ";
+	variant = getInRange(0, 12);
+	return variant;
 }
 
 int main()
 {
-    SetConsoleOutputCP(1251);
-    SetConsoleCP(1251);
-    pipe p;
-    ks k;
-    int num = 1;
-    do
-    {
-        int num = print_menu();
+	redirect_output_wrapper cerr_out(cerr);
+	string time = "now";
+	ofstream logfile("log__" + time + ".txt");
+	if (logfile)
+		cerr_out.redirect(logfile);
+	SetConsoleOutputCP(1251);
+	SetConsoleCP(1251);
+	int variant = 1;
+	unordered_map <int, Pipeline> MP;
+	unordered_map <int, KStation> MK;
 
-        switch (num)
-        {
-        case 1:
-            p = add_new_pipe();
-            break;
-        case 2:
-            k = add_new_ks();
-            break;
-        case 3:
-            all_out(p, k);
-            break;
-        case 4:
-            if (p.name != "")
-            {
-                edit_pipe(p);
-            }
-            else
-            {
-                cout << "Труба еще не создана\n";
-            }
-            break;
-        case 5:
-            if (k.name != "")
-            {
-                edit_ks(k);
-            }
-            else
-            {
-                cout << "КС еще не создана\n";
-            }
-            break;
-        case 6:
-            output_in_file(p, k);
-            break;
-        case 7:
-            p = input_file_pipe(p);
-            k = input_file_ks(k);
-            cout << "Чтение завершено\n";
-            break;
-        case 0:
-            exit(EXIT_SUCCESS);
-            break;
-        default:
-            cout << "Введите пункт меню 0-7\n";
-            break;
-        }
-        if (num != 0)
-            system("pause");
-    } while (num != 0);
+	do {
+		int variant = print_menu();
+
+		switch (variant) {
+		case 1:
+		{
+			Pipeline P;
+			MP.insert({ P.getPipeID(), Pipeline::AddNewPipe() });
+			break;
+		}
+		case 2:
+		{
+			KStation K;
+			MK.insert({ K.getKSID(), K.AddNewKS() });
+			break;
+		}
+		case 3:
+			FullView(MP, MK);
+			break;
+		case 4:
+			selectPipe(MP).EditPipe();
+			break;
+		case 5:
+			selectStation(MK).EditKS();
+			break;
+		case 6:
+		{
+			cout << "Введите имя файла: ";
+			string iFileName;
+			iFileName = readLine();
+			readPipes(MP, iFileName);
+			readKSs(MK, iFileName);
+		}
+		break;
+		case 7:
+		{
+			cout << "Введите имя файла: ";
+			string iFileName;
+			iFileName = readLine();
+			sohraneniePipes(MP, iFileName);
+			sohranenieKSs(MK, iFileName);
+		}
+		break;
+		case 8:
+			deleteOnePipe(MP);
+			break;
+		case 9:
+			deleteOneKS(MK);
+			break;
+		case 10:
+			PipeSearch(MP);
+			break;
+		case 11:
+			KSSearch(MK);
+			break;
+		case 12:
+			PacketEditPipe(MP);
+			break;
+		case 0:
+			cout << "Выход из программы..." << endl;
+			exit(EXIT_SUCCESS);
+			break;
+		}
+		if (variant != 0)
+			system("pause");
+	} while (variant != 0);
+	return 0;
 }
