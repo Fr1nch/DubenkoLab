@@ -18,24 +18,30 @@
     <ClCompile Include="Laba1.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="PipeCPP.cpp">
+    <ClCompile Include="CPipe.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="KsCPP.cpp">
+    <ClCompile Include="CSS.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="Proverka.cpp">
+    <ClCompile Include="GTN.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="SubFunc.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="KsH.h">
+    <ClInclude Include="Pipes.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="PipeH.h">
+    <ClInclude Include="CSs.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="Proverka.h">
+    <ClInclude Include="GTN.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="SubFunc.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

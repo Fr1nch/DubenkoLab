@@ -128,15 +128,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="KsCPP.cpp" />
+    <ClCompile Include="CPipe.cpp" />
+    <ClCompile Include="CSS.cpp" />
+    <ClCompile Include="GTN.cpp" />
     <ClCompile Include="Laba1.cpp" />
-    <ClCompile Include="PipeCPP.cpp" />
-    <ClCompile Include="Proverka.cpp" />
+    <ClCompile Include="SubFunc.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="KsH.h" />
-    <ClInclude Include="PipeH.h" />
-    <ClInclude Include="Proverka.h" />
+    <ClInclude Include="CSs.h" />
+    <ClInclude Include="GTN.h" />
+    <ClInclude Include="Pipes.h" />
+    <ClInclude Include="SubFunc.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
